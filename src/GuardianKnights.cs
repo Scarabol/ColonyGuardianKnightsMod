@@ -83,6 +83,7 @@ namespace ScarabolMods
     }
 
     [ModLoader.ModCallback(ModLoader.EModCallbackType.AfterItemTypesDefined, "scarabol.guardianknights.loadrecipes")]
+    [ModLoader.ModCallbackDependsOn("pipliz.blocknpcs.loadrecipes")]
     [ModLoader.ModCallbackProvidesFor("pipliz.apiprovider.registerrecipes")]
     public static void AfterItemTypesDefined()
     {
