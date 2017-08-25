@@ -63,6 +63,7 @@ namespace ScarabolMods
                            .SetAs<bool>("needsBase", true)
                            .SetAs<bool>("isSolid", false)
                            .SetAs<int>("npcLimit", 0)
+                           .SetAs("sideall", "SELF")
                            .SetAs("rotatablex+", JOB_ITEM_KEY + "x+")
                            .SetAs("rotatablex-", JOB_ITEM_KEY + "x-")
                            .SetAs("rotatablez+", JOB_ITEM_KEY + "z+")
