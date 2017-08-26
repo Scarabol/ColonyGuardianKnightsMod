@@ -43,12 +43,15 @@ namespace ScarabolMods
         JSONNode jsonToPatch;
         if (Pipliz.JSON.JSON.Deserialize(patchPath, out jsonToPatch, false)) {
           foreach (KeyValuePair<string, JSONNode> entry in jsonFromMod.LoopObject()) {
-            string realkey = keyprefix + entry.Key;
+            string realkey = entry.Key;
+            if (!locFilename.Equals("localization.json")) {
+              realkey = keyprefix + entry.Key;
+            }
             string val = jsonFromMod.GetAs<string>(entry.Key);
             if (!jsonToPatch.HasChild(realkey)) {
-              Pipliz.Log.Write(string.Format("translation '{0}' => '{1}' added to '{2}/{3}'. This will apply AFTER next restart!!!", realkey, val, locName, locFilename));
+              Pipliz.Log.Write(string.Format("localization '{0}' => '{1}' added to '{2}'. This will apply AFTER next restart!!!", realkey, val, Path.Combine(locName, locFilename)));
             } else if (!jsonToPatch.GetAs<string>(realkey).Equals(val)) {
-              Pipliz.Log.Write(string.Format("translation '{0}' => '{1}' changed in '{2}/{3}'. This will apply AFTER next restart!!!", realkey, val, locName, locFilename));
+              Pipliz.Log.Write(string.Format("localization '{0}' => '{1}' changed in '{2}'. This will apply AFTER next restart!!!", realkey, val, Path.Combine(locName, locFilename)));
             }
             jsonToPatch.SetAs(realkey, val);
           }
@@ -69,6 +72,41 @@ namespace ScarabolMods
     }
   }
 
+  public static class ModAudioHelper
+  {
+    public static void IntegrateAudio(string audioFilesPath, string namesPrefix, string relativeAudioPath)
+    {
+      try {
+        string[] jsonfiles = Directory.GetFiles(audioFilesPath, "*.json", SearchOption.TopDirectoryOnly);
+        foreach (string jsonfilepath in jsonfiles) {
+          JSONNode jsonAudio;
+          Pipliz.JSON.JSON.Deserialize(jsonfilepath, out jsonAudio, true);
+          string colName;
+          if (jsonAudio.TryGetAs("clipCollectionName", out colName)) {
+            string realColName = namesPrefix + colName;
+            Pipliz.Log.Write(string.Format("Rewriting audio collection name from '{0}' to '{1}'", colName, realColName));
+            jsonAudio.SetAs("clipCollectionName", realColName);
+          }
+          JSONNode jsonFileList;
+          if (jsonAudio.TryGetAs("fileList", out jsonFileList) && jsonFileList.NodeType == NodeType.Array) {
+            foreach (JSONNode fileNode in jsonFileList.LoopArray()) {
+              string audioPath;
+              if (fileNode.TryGetAs("path", out audioPath)) {
+                string realAudioPath = Path.Combine(relativeAudioPath, audioPath);
+                Pipliz.Log.Write(string.Format("Rewriting audio file path from '{0}' to '{1}'", audioPath, realAudioPath));
+                fileNode.SetAs("path", realAudioPath);
+              }
+            }
+          }
+          string jsontargetfilepath = MultiPath.Combine(Path.GetFullPath("gamedata"), "audio", namesPrefix + Path.GetFileName(jsonfilepath));
+          Pipliz.JSON.JSON.Serialize(jsontargetfilepath, jsonAudio);
+        }
+      } catch (DirectoryNotFoundException) {
+//        Pipliz.Log.Write(string.Format("No audio directory found at {0}", audioFilesPath));
+      }
+    }
+  }
+
   public static class MultiPath
   {
     public static string Combine(params string[] pathParts)
@@ -78,6 +116,18 @@ namespace ScarabolMods
         result.Append(part.TrimEnd('/', '\\')).Append(Path.DirectorySeparatorChar);
       }
       return result.ToString().TrimEnd(Path.DirectorySeparatorChar);
+    }
+  }
+
+  public static class TypeHelper
+  {
+    public static string RotatableToBasetype(string typename)
+    {
+      if (typename.EndsWith("x+") || typename.EndsWith("x-") || typename.EndsWith("z+") || typename.EndsWith("z-")) {
+        return typename.Substring(0, typename.Length - 2);
+      } else {
+        return typename;
+      }
     }
   }
 }

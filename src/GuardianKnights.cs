@@ -15,7 +15,9 @@ namespace ScarabolMods
   [ModLoader.ModManager]
   public static class GuardianKnightsModEntries
   {
-    public static string JOB_ITEM_KEY = "mods.scarabol.guardianknights.knight";
+    public static string MOD_PREFIX = "mods.scarabol.guardianknights.";
+    public static string JOB_ITEM_KEY = MOD_PREFIX + "knight";
+    public static string JOB_TOOL_KEY = MOD_PREFIX + "sword";
     private static string AssetsDirectory;
     private static string RelativeTexturesPath;
     private static string RelativeIconsPath;
@@ -27,8 +29,8 @@ namespace ScarabolMods
     public static void OnAssemblyLoaded(string path)
     {
       AssetsDirectory = Path.Combine(Path.GetDirectoryName(path), "assets");
-      ModLocalizationHelper.localize(Path.Combine(AssetsDirectory, "localization"), "mods.scarabol.guardianknights.", false);
-      // TODO this is realy hacky (maybe better in future ModAPI)
+      ModLocalizationHelper.localize(Path.Combine(AssetsDirectory, "localization"), MOD_PREFIX, false);
+      // TODO this is really hacky (maybe better in future ModAPI)
       RelativeTexturesPath = new Uri(MultiPath.Combine(Path.GetFullPath("gamedata"), "textures", "materials", "blocks", "albedo", "dummyfile")).MakeRelativeUri(new Uri(MultiPath.Combine(AssetsDirectory, "textures", "albedo"))).OriginalString;
       RelativeIconsPath = new Uri(MultiPath.Combine(Path.GetFullPath("gamedata"), "textures", "icons", "dummyfile")).MakeRelativeUri(new Uri(MultiPath.Combine(AssetsDirectory, "icons"))).OriginalString;
       RelativeMeshesPath = new Uri(MultiPath.Combine(Path.GetFullPath("gamedata"), "meshes", "dummyfile")).MakeRelativeUri(new Uri(Path.Combine(AssetsDirectory, "meshes"))).OriginalString;
@@ -51,19 +53,19 @@ namespace ScarabolMods
     public static void AfterAddingBaseTypes()
     {
       ItemTypesServer.AddTextureMapping(JOB_ITEM_KEY, new JSONNode()
-        .SetAs("albedo", Path.Combine(RelativeTexturesPath, "knight"))
-        .SetAs("normal", "neutral")
-        .SetAs("emissive", "neutral")
-        .SetAs("height", "neutral")
+                                        .SetAs("albedo", Path.Combine(RelativeTexturesPath, "knight"))
+                                        .SetAs("normal", "neutral")
+                                        .SetAs("emissive", "neutral")
+                                        .SetAs("height", "neutral")
       );
       ItemTypes.AddRawType(JOB_ITEM_KEY, new JSONNode(NodeType.Object)
                            .SetAs("icon", Path.Combine(RelativeIconsPath, "knight.png"))
-                           .SetAs<int>("maxStackSize", 400)
-                           .SetAs<bool>("isRotatable", true)
-                           .SetAs<bool>("needsBase", true)
-                           .SetAs<bool>("isSolid", false)
-                           .SetAs<int>("npcLimit", 0)
+                           .SetAs("maxStackSize", 400)
+                           .SetAs("needsBase", true)
+                           .SetAs("isSolid", false)
+                           .SetAs("npcLimit", 0)
                            .SetAs("sideall", "SELF")
+                           .SetAs("isRotatable", true)
                            .SetAs("rotatablex+", JOB_ITEM_KEY + "x+")
                            .SetAs("rotatablex-", JOB_ITEM_KEY + "x-")
                            .SetAs("rotatablez+", JOB_ITEM_KEY + "z+")
@@ -75,11 +77,10 @@ namespace ScarabolMods
                              .SetAs("mesh", Path.Combine(RelativeMeshesPath, "sword" + xz + ".obj"))
         );
       }
-      ItemTypes.AddRawType("mods.scarabol.guardianknights.sword",
-        new JSONNode(NodeType.Object)
-                           .SetAs<int>("npcLimit", 1)
+      ItemTypes.AddRawType(JOB_TOOL_KEY, new JSONNode(NodeType.Object)
+                           .SetAs("npcLimit", 1)
                            .SetAs("icon", Path.Combine(RelativeIconsPath, "sword.png"))
-                           .SetAs<bool>("isPlaceable", false)
+                           .SetAs("isPlaceable", false)
       );
     }
 
@@ -88,16 +89,9 @@ namespace ScarabolMods
     [ModLoader.ModCallbackProvidesFor("pipliz.apiprovider.registerrecipes")]
     public static void AfterItemTypesDefined()
     {
-      recipeKnight = new Recipe(new JSONNode()
-        .SetAs("results", new JSONNode(NodeType.Array).AddToArray(new JSONNode().SetAs("type", JOB_ITEM_KEY)))
-        .SetAs("requires", new JSONNode(NodeType.Array).AddToArray(new JSONNode().SetAs("type", "ironingot").SetAs<int>("amount", 3)).AddToArray(new JSONNode().SetAs("type", "planks")))
-      );
-      RecipeManager.AddRecipes("pipliz.crafter", new List<Recipe>() { recipeKnight });
-      recipeSword = new Recipe(new JSONNode()
-        .SetAs("results", new JSONNode(NodeType.Array).AddToArray(new JSONNode().SetAs("type", "mods.scarabol.guardianknights.sword")))
-        .SetAs("requires", new JSONNode(NodeType.Array).AddToArray(new JSONNode().SetAs("type", "ironingot")))
-      );
-      RecipeManager.AddRecipes("pipliz.crafter", new List<Recipe>() { recipeSword });
+      recipeKnight = new Recipe(new List<InventoryItem>() { new InventoryItem("ironingot", 3), new InventoryItem("planks", 1) }, new InventoryItem(JOB_ITEM_KEY, 1));
+      recipeSword = new Recipe(new InventoryItem("ironingot", 1), new InventoryItem(JOB_TOOL_KEY, 1));
+      RecipeManager.AddRecipes("pipliz.crafter", new List<Recipe>() { recipeKnight, recipeSword });
     }
 
     [ModLoader.ModCallback(ModLoader.EModCallbackType.AfterWorldLoad, "scarabol.guardianknights.addplayercrafts")]
@@ -120,7 +114,7 @@ namespace ScarabolMods
 
     public override bool ToSleep { get { return false; } }
 
-    public override InventoryItem RecruitementItem { get { return new InventoryItem(ItemTypes.IndexLookup.GetIndex("mods.scarabol.guardianknights.sword"), 1); } }
+    public override InventoryItem RecruitementItem { get { return new InventoryItem(ItemTypes.IndexLookup.GetIndex(GuardianKnightsModEntries.JOB_TOOL_KEY), 1); } }
 
     public override ITrackableBlock InitializeFromJSON (Players.Player player, JSONNode node)
     {
