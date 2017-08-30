@@ -16,14 +16,17 @@ namespace ScarabolMods
   public static class GuardianKnightsModEntries
   {
     public static string MOD_PREFIX = "mods.scarabol.guardianknights.";
-    public static string JOB_ITEM_KEY = MOD_PREFIX + "knight";
+    public static string KNIGHT_ITEM_KEY = MOD_PREFIX + "knight";
+    public static string PLATFORM_ITEM_KEY = MOD_PREFIX + "platform";
     public static string JOB_TOOL_KEY = MOD_PREFIX + "sword";
     private static string AssetsDirectory;
     private static string RelativeTexturesPath;
     private static string RelativeIconsPath;
     private static string RelativeMeshesPath;
     private static Recipe recipeKnight;
+    private static Recipe recipeWoodenPlatform;
     private static Recipe recipeSword;
+    public static Dictionary<Players.Player, GuardianKnightJob> LastPlacedJobs = new Dictionary<Players.Player, GuardianKnightJob> ();
 
     [ModLoader.ModCallback (ModLoader.EModCallbackType.OnAssemblyLoaded, "scarabol.guardianknights.assemblyload")]
     public static void OnAssemblyLoaded (string path)
@@ -46,19 +49,19 @@ namespace ScarabolMods
     [ModLoader.ModCallbackProvidesFor ("pipliz.apiprovider.jobs.resolvetypes")]
     public static void AfterDefiningNPCTypes ()
     {
-      BlockJobManagerTracker.Register<GuardianKnightJob> (JOB_ITEM_KEY);
+      BlockJobManagerTracker.Register<GuardianKnightJob> (KNIGHT_ITEM_KEY);
     }
 
     [ModLoader.ModCallback (ModLoader.EModCallbackType.AfterAddingBaseTypes, "scarabol.guardianknights.addrawtypes")]
     public static void AfterAddingBaseTypes ()
     {
-      ItemTypesServer.AddTextureMapping (JOB_ITEM_KEY, new JSONNode ()
+      ItemTypesServer.AddTextureMapping (KNIGHT_ITEM_KEY, new JSONNode ()
         .SetAs ("albedo", Path.Combine (RelativeTexturesPath, "knight"))
         .SetAs ("normal", "neutral")
         .SetAs ("emissive", "neutral")
         .SetAs ("height", "neutral")
       );
-      ItemTypes.AddRawType (JOB_ITEM_KEY, new JSONNode (NodeType.Object)
+      ItemTypes.AddRawType (KNIGHT_ITEM_KEY, new JSONNode ()
         .SetAs ("icon", Path.Combine (RelativeIconsPath, "knight.png"))
         .SetAs ("maxStackSize", 400)
         .SetAs ("needsBase", true)
@@ -66,18 +69,33 @@ namespace ScarabolMods
         .SetAs ("npcLimit", 0)
         .SetAs ("sideall", "SELF")
         .SetAs ("isRotatable", true)
-        .SetAs ("rotatablex+", JOB_ITEM_KEY + "x+")
-        .SetAs ("rotatablex-", JOB_ITEM_KEY + "x-")
-        .SetAs ("rotatablez+", JOB_ITEM_KEY + "z+")
-        .SetAs ("rotatablez-", JOB_ITEM_KEY + "z-")
+        .SetAs ("rotatablex+", KNIGHT_ITEM_KEY + "x+")
+        .SetAs ("rotatablex-", KNIGHT_ITEM_KEY + "x-")
+        .SetAs ("rotatablez+", KNIGHT_ITEM_KEY + "z+")
+        .SetAs ("rotatablez-", KNIGHT_ITEM_KEY + "z-")
       );
       foreach (string xz in new string[] { "x+", "x-", "z+", "z-" }) {
-        ItemTypes.AddRawType (JOB_ITEM_KEY + xz, new JSONNode ()
-          .SetAs ("parentType", JOB_ITEM_KEY)
+        ItemTypes.AddRawType (KNIGHT_ITEM_KEY + xz, new JSONNode ()
+          .SetAs ("parentType", KNIGHT_ITEM_KEY)
           .SetAs ("mesh", Path.Combine (RelativeMeshesPath, "sword" + xz + ".obj"))
         );
       }
-      ItemTypes.AddRawType (JOB_TOOL_KEY, new JSONNode (NodeType.Object)
+      ItemTypesServer.AddTextureMapping (PLATFORM_ITEM_KEY, new JSONNode ()
+        .SetAs ("albedo", Path.Combine (RelativeTexturesPath, "woodenplatform"))
+        .SetAs ("normal", "neutral")
+        .SetAs ("emissive", "neutral")
+        .SetAs ("height", "neutral")
+      );
+      ItemTypes.AddRawType (PLATFORM_ITEM_KEY, new JSONNode ()
+        .SetAs ("icon", Path.Combine (RelativeIconsPath, "woodenplatform.png"))
+        .SetAs ("maxStackSize", 400)
+        .SetAs ("needsBase", true)
+        .SetAs ("isSolid", false)
+        .SetAs ("npcLimit", 0)
+        .SetAs ("sideall", "SELF")
+        .SetAs ("mesh", Path.Combine (RelativeMeshesPath, "woodenplatform.obj"))
+      );
+      ItemTypes.AddRawType (JOB_TOOL_KEY, new JSONNode ()
         .SetAs ("npcLimit", 1)
         .SetAs ("icon", Path.Combine (RelativeIconsPath, "sword.png"))
         .SetAs ("isPlaceable", false)
@@ -89,12 +107,23 @@ namespace ScarabolMods
     [ModLoader.ModCallbackProvidesFor ("pipliz.apiprovider.registerrecipes")]
     public static void AfterItemTypesDefined ()
     {
-      recipeKnight = new Recipe (new List<InventoryItem> () {
-        new InventoryItem ("ironingot", 3),
-        new InventoryItem ("planks", 1)
-      }, new InventoryItem (JOB_ITEM_KEY, 1));
+      recipeKnight = new Recipe (
+        new List<InventoryItem> () { new InventoryItem ("ironingot", 3), new InventoryItem ("planks", 1) },
+        new InventoryItem (KNIGHT_ITEM_KEY, 1)
+      );
+      recipeWoodenPlatform = new Recipe (new InventoryItem ("planks", 5), new InventoryItem (PLATFORM_ITEM_KEY, 1));
       recipeSword = new Recipe (new InventoryItem ("ironingot", 1), new InventoryItem (JOB_TOOL_KEY, 1));
-      RecipeManager.AddRecipes ("pipliz.crafter", new List<Recipe> () { recipeKnight, recipeSword });
+      RecipeManager.AddRecipes ("pipliz.crafter", new List<Recipe> () {
+        recipeWoodenPlatform,
+        recipeKnight,
+        recipeSword
+      });
+    }
+
+    [ModLoader.ModCallback (ModLoader.EModCallbackType.AfterItemTypesServer, "scarabol.guardianknights.registercallbacks")]
+    public static void AfterItemTypesServer ()
+    {
+      ItemTypesServer.RegisterOnAdd (PLATFORM_ITEM_KEY, KnightBlockCode.OnAddPlatform);
     }
 
     [ModLoader.ModCallback (ModLoader.EModCallbackType.AfterWorldLoad, "scarabol.guardianknights.addplayercrafts")]
@@ -102,16 +131,32 @@ namespace ScarabolMods
     {
       // add recipes here, otherwise they're inserted before vanilla recipes in player crafts
       RecipePlayer.AllRecipes.Add (recipeKnight);
+      RecipePlayer.AllRecipes.Add (recipeWoodenPlatform);
       RecipePlayer.AllRecipes.Add (recipeSword);
+    }
+  }
+
+  public static class KnightBlockCode
+  {
+    public static void OnAddPlatform (Vector3Int position, ushort newtype, Players.Player causedBy)
+    {
+      GuardianKnightJob lastJob;
+      if (GuardianKnightsModEntries.LastPlacedJobs.TryGetValue (causedBy, out lastJob)) {
+        lastJob.waypoint = position;
+        GuardianKnightsModEntries.LastPlacedJobs.Remove (causedBy);
+      }
     }
   }
 
   public class GuardianKnightJob : BlockJobBase, IBlockJobBase, INPCTypeDefiner
   {
-    ushort knightType;
+    string jobtypename;
+    Vector3Int jobdirvec;
+    public Vector3Int waypoint = Vector3Int.invalidPos;
+    Vector3Int moveTarget = Vector3Int.invalidPos;
     Zombie target;
 
-    public override string NPCTypeKey { get { return "scarabol.guardknight"; } }
+    public override string NPCTypeKey { get { return "scarabol.guardianknight"; } }
 
     public override float TimeBetweenJobs { get { return 1.2f; } }
 
@@ -121,14 +166,18 @@ namespace ScarabolMods
 
     public ITrackableBlock InitializeOnAdd (Vector3Int position, ushort type, Players.Player player)
     {
-      knightType = type;
+      GuardianKnightsModEntries.LastPlacedJobs [player] = this;
+      jobtypename = ItemTypes.IndexLookup.GetName (type);
+      jobdirvec = TypeHelper.RotatableToVector (jobtypename);
       InitializeJob (player, position, 0);
       return this;
     }
 
     public override ITrackableBlock InitializeFromJSON (Players.Player player, JSONNode node)
     {
-      knightType = ItemTypes.IndexLookup.GetIndex (node.GetAs<string> ("type"));
+      jobtypename = node.GetAs<string> ("jobtypename");
+      jobdirvec = TypeHelper.RotatableToVector (jobtypename);
+      waypoint = (Vector3Int)node ["waypoint"];
       InitializeJob (player, (Vector3Int)node ["position"], node.GetAs<int> ("npcID"));
       return this;
     }
@@ -136,7 +185,18 @@ namespace ScarabolMods
     public override JSONNode GetJSON ()
     {
       return base.GetJSON ()
-        .SetAs ("type", ItemTypes.IndexLookup.GetName (knightType));
+        .SetAs ("jobtypename", jobtypename)
+        .SetAs ("waypoint", (JSONNode)waypoint);
+    }
+
+    public override Vector3Int GetJobLocation ()
+    {
+      if (!waypoint.IsValid) {
+        return base.GetJobLocation ();
+      } else if (!moveTarget.IsValid) {
+        moveTarget = position + new Vector3Int ((waypoint - position).Vector * Pipliz.Random.NextFloat (0, 1));
+      }
+      return moveTarget;
     }
 
     public override void OnNPCDoJob (ref NPCBase.NPCState state)
@@ -152,30 +212,32 @@ namespace ScarabolMods
         }
       }
       if (target == null || !target.IsValid) {
-        target = ZombieTracker.Find (position.Add (0, 1, 0), 3);
-        if (target == null) {
-          Vector3 desiredPosition = usedNPC.Position;
-          if (knightType == ItemTypes.IndexLookup.GetIndex (GuardianKnightsModEntries.JOB_ITEM_KEY + "x-")) {
-            desiredPosition += Vector3.left;
-          } else if (knightType == ItemTypes.IndexLookup.GetIndex (GuardianKnightsModEntries.JOB_ITEM_KEY + "x+")) {
-            desiredPosition += Vector3.right;
-          } else if (knightType == ItemTypes.IndexLookup.GetIndex (GuardianKnightsModEntries.JOB_ITEM_KEY + "z+")) {
-            desiredPosition += Vector3.forward;
-          } else if (knightType == ItemTypes.IndexLookup.GetIndex (GuardianKnightsModEntries.JOB_ITEM_KEY + "z-")) {
-            desiredPosition += Vector3.back;
-          }
-          usedNPC.LookAt (desiredPosition);
-        } else {
+        target = ZombieTracker.Find (new Vector3Int (usedNPC.Position) + Vector3Int.up, 3);
+        if (target != null) {
           OverrideCooldown (0.3);
+        } else if (moveTarget.IsValid) {
+          usedNPC.LookAt (moveTarget.Vector);
+          moveTarget = Vector3Int.invalidPos;
+        } else {
+          usedNPC.LookAt ((position + jobdirvec).Vector);
         }
       }
+    }
+
+    public override void OnRemove ()
+    {
+      GuardianKnightJob lastJob;
+      if (GuardianKnightsModEntries.LastPlacedJobs.TryGetValue (this.owner, out lastJob)) {
+        GuardianKnightsModEntries.LastPlacedJobs.Remove (this.owner);
+      }
+      base.OnRemove ();
     }
 
     NPCTypeSettings INPCTypeDefiner.GetNPCTypeDefinition ()
     {
       NPCTypeSettings def = NPCTypeSettings.Default;
       def.keyName = NPCTypeKey;
-      def.printName = "Knight guard";
+      def.printName = "Guardian Knight";
       def.maskColor1 = new Color32 (32, 32, 32, 255);
       def.type = NPCTypeID.GetNextID ();
       return def;
