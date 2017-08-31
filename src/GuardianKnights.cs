@@ -23,6 +23,7 @@ namespace ScarabolMods
     private static string RelativeTexturesPath;
     private static string RelativeIconsPath;
     private static string RelativeMeshesPath;
+    private static string RelativeAudioPath;
     private static Recipe recipeKnight;
     private static Recipe recipeWoodenPlatform;
     private static Recipe recipeSword;
@@ -37,6 +38,8 @@ namespace ScarabolMods
       RelativeTexturesPath = new Uri (MultiPath.Combine (Path.GetFullPath ("gamedata"), "textures", "materials", "blocks", "albedo", "dummyfile")).MakeRelativeUri (new Uri (MultiPath.Combine (AssetsDirectory, "textures", "albedo"))).OriginalString;
       RelativeIconsPath = new Uri (MultiPath.Combine (Path.GetFullPath ("gamedata"), "textures", "icons", "dummyfile")).MakeRelativeUri (new Uri (MultiPath.Combine (AssetsDirectory, "icons"))).OriginalString;
       RelativeMeshesPath = new Uri (MultiPath.Combine (Path.GetFullPath ("gamedata"), "meshes", "dummyfile")).MakeRelativeUri (new Uri (Path.Combine (AssetsDirectory, "meshes"))).OriginalString;
+      RelativeAudioPath = new Uri (MultiPath.Combine (Path.GetFullPath ("gamedata"), "audio", "dummyfile")).MakeRelativeUri (new Uri (Path.Combine (AssetsDirectory, "audio"))).OriginalString;
+      ModAudioHelper.IntegrateAudio (Path.Combine (AssetsDirectory, "audio"), MOD_PREFIX, RelativeAudioPath);
     }
 
     [ModLoader.ModCallback (ModLoader.EModCallbackType.AfterStartup, "scarabol.guardianknights.registercallbacks")]
@@ -206,7 +209,9 @@ namespace ScarabolMods
         Vector3 targetPos = target.Position + Vector3.up;
         if (General.Physics.Physics.CanSee (npcPos, targetPos)) {
           usedNPC.LookAt (targetPos);
-          Arrow.New (npcPos, targetPos, target.Direction);
+          target.Ragdoll ();
+          ServerManager.SendAudio (position.Vector, GuardianKnightsModEntries.MOD_PREFIX + "swordCut");
+          ZombieTracker.Remove (target);
         } else {
           target = null;
         }

@@ -1,0 +1,13 @@
+{
+	"clipCollectionName" : "swordCut",
+	"fileList" : [
+		{
+			"path" : "swordCut1.ogg",
+			"audioGroup" : "BlockEditing"
+		},
+		{
+			"path" : "swordCut1.ogg",
+			"audioGroup" : "BlockEditing"
+		}
+	]
+}
