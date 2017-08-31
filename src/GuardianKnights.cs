@@ -161,7 +161,7 @@ namespace ScarabolMods
 
     public override string NPCTypeKey { get { return "scarabol.guardianknight"; } }
 
-    public override float TimeBetweenJobs { get { return 1.2f; } }
+    public override float TimeBetweenJobs { get { return 1.5f; } }
 
     public override bool ToSleep { get { return false; } }
 
@@ -212,14 +212,15 @@ namespace ScarabolMods
           target.Ragdoll ();
           ServerManager.SendAudio (position.Vector, GuardianKnightsModEntries.MOD_PREFIX + "swordCut");
           ZombieTracker.Remove (target);
+          OverrideCooldown (3.0);
         } else {
           target = null;
         }
       }
       if (target == null || !target.IsValid) {
-        target = ZombieTracker.Find (new Vector3Int (usedNPC.Position) + Vector3Int.up, 3);
+        target = ZombieTracker.Find (new Vector3Int (usedNPC.Position) + Vector3Int.up, 2);
         if (target != null) {
-          OverrideCooldown (0.3);
+          OverrideCooldown (0.2);
         } else if (moveTarget.IsValid) {
           usedNPC.LookAt (moveTarget.Vector);
           moveTarget = Vector3Int.invalidPos;
