@@ -39,7 +39,7 @@ namespace ScarabolMods
     [ModLoader.ModCallback(ModLoader.EModCallbackType.AfterStartup, "scarabol.guardianknights.registercallbacks")]
     public static void AfterStartup()
     {
-      Pipliz.Log.Write("Loaded GuardianKnights Mod 1.1 by Scarabol");
+      Pipliz.Log.Write("Loaded GuardianKnights Mod 1.2 by Scarabol");
     }
 
     [ModLoader.ModCallback(ModLoader.EModCallbackType.AfterDefiningNPCTypes, "scarabol.guardianknights.registerjobs")]
