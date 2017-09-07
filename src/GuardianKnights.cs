@@ -45,7 +45,7 @@ namespace ScarabolMods
     [ModLoader.ModCallback (ModLoader.EModCallbackType.AfterStartup, "scarabol.guardianknights.registercallbacks")]
     public static void AfterStartup ()
     {
-      Pipliz.Log.Write ("Loaded GuardianKnights Mod 1.2.1 by Scarabol");
+      Pipliz.Log.Write ("Loaded GuardianKnights Mod 1.2.2 by Scarabol");
     }
 
     [ModLoader.ModCallback (ModLoader.EModCallbackType.AfterDefiningNPCTypes, "scarabol.guardianknights.registerjobs")]
@@ -182,7 +182,10 @@ namespace ScarabolMods
         jobtypename = node.GetAs<string> ("type"); // fallback migration code for older versions
       }
       jobdirvec = TypeHelper.RotatableToVector (jobtypename);
-      if (!node.TryGetAs ("waypoint", out waypoint)) {
+      JSONNode jsonWaypoint;
+      if (node.TryGetAs ("waypoint", out jsonWaypoint)) {
+        waypoint = (Vector3Int)jsonWaypoint;
+      } else {
         waypoint = Vector3Int.invalidPos; // fallback migration code for older versions
       }
       InitializeJob (player, (Vector3Int)node ["position"], node.GetAs<int> ("npcID"));
