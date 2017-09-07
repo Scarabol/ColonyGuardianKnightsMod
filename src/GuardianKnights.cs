@@ -178,9 +178,13 @@ namespace ScarabolMods
 
     public override ITrackableBlock InitializeFromJSON (Players.Player player, JSONNode node)
     {
-      jobtypename = node.GetAs<string> ("jobtypename");
+      if (!node.TryGetAs ("jobtypename", out jobtypename)) {
+        jobtypename = node.GetAs<string> ("type"); // fallback migration code for older versions
+      }
       jobdirvec = TypeHelper.RotatableToVector (jobtypename);
-      waypoint = (Vector3Int)node ["waypoint"];
+      if (!node.TryGetAs ("waypoint", out waypoint)) {
+        waypoint = Vector3Int.invalidPos; // fallback migration code for older versions
+      }
       InitializeJob (player, (Vector3Int)node ["position"], node.GetAs<int> ("npcID"));
       return this;
     }
